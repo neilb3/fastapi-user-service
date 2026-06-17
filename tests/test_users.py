@@ -1,9 +1,14 @@
 import pytest
+import os
 from fastapi.testclient import TestClient
 import sys
-import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Set API_TOKENS env var before importing app
+# This is how tokens are loaded in production - via environment, not hardcode
+os.environ["API_TOKENS"] = "dev-token-123:developer,admin-token-456:admin"
+os.environ["TOKEN_EXPIRY_SECONDS"] = "86400"
 
 from main import app
 
