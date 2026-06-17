@@ -10,70 +10,92 @@ fastapi-user-service is an internal REST API for user management built with Fast
 | services/user_service.py | Business logic, no HTTP |
 | models/user.py | Pydantic schemas |
 | utils/auth.py | Token verification and expiry |
-| utils/rate_limit.py | Rate limiter setup |
 | tests/test_users.py | All user endpoint tests |
+| main.py | App entry point, rate limit handler |
 
-## Adding Rate Limiting
-Use slowapi (already in requirements.txt). Add to main.py:
+## Rate Limiting - CRITICAL RULES
 
+### Environment Variable
+Rate limit is controlled by RATE_LIMIT_PER_MINUTE env var.
+- Production default: 100
+- Test environment: 3 (set in tests/test_users.py)
+
+### main.py pattern - always use this exactly
 ```python
-from slowapi import Limiter, _rate_limit_exceeded_handler
+import os
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+RATE_LIMIT = os.getenv("RATE_LIMIT_PER_MINUTE", "100")
 limiter = Limiter(key_func=get_remote_address)
+app = FastAPI(title="User Service API", version="1.0.0")
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"error": "Rate limit exceeded"},
+        headers={"Retry-After": "60"}
+    )
+
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 ```
 
-Add to routes/users.py:
+NEVER use _rate_limit_exceeded_handler from slowapi - it breaks in tests.
+
+### routes/users.py pattern
 ```python
+from fastapi import APIRouter, Request, Depends
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from fastapi import Request
+import os
 
 limiter = Limiter(key_func=get_remote_address)
 
 @router.get("/users", response_model=list[UserResponse])
-@limiter.limit("100/minute")
+@limiter.limit(lambda: os.getenv("RATE_LIMIT_PER_MINUTE", "100") + "/minute")
 def get_users(request: Request, token: str = Depends(verify_token)):
     return user_service.get_all_users()
 ```
 
-NOTE: The route function MUST have `request: Request` as first parameter for slowapi to work.
+request: Request MUST be first parameter in rate-limited routes.
 
-## Rate Limit Testing - EXACT PATTERN TO USE
-IMPORTANT: Always use this exact pattern for rate limit tests. Do not invent alternatives.
+## Rate Limit Testing - EXACT PATTERN
+No mocking. Make real requests. Rate limit is 3/minute in tests.
 
 ```python
-from unittest.mock import patch
-from slowapi.errors import RateLimitExceeded
-
 def test_get_users_rate_limit_returns_429():
-    def mock_check(request, endpoint, limit_provider):
-        raise RateLimitExceeded("100 per 1 minute")
-    with patch.object(app.state.limiter, "_check_request_limit", side_effect=mock_check):
-        response = client.get("/api/users", headers=AUTH_HEADERS)
-        assert response.status_code == 429
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users", headers=AUTH_HEADERS)
+        response = c.get("/api/users", headers=AUTH_HEADERS)
+    assert response.status_code == 429
 
 def test_get_users_rate_limit_has_retry_after_header():
-    def mock_check(request, endpoint, limit_provider):
-        raise RateLimitExceeded("100 per 1 minute")
-    with patch.object(app.state.limiter, "_check_request_limit", side_effect=mock_check):
-        response = client.get("/api/users", headers=AUTH_HEADERS)
-        assert response.status_code == 429
-        assert "Retry-After" in response.headers or "retry-after" in response.headers
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users", headers=AUTH_HEADERS)
+        response = c.get("/api/users", headers=AUTH_HEADERS)
+    assert response.status_code == 429
+    assert "retry-after" in {k.lower() for k in response.headers.keys()}
 ```
 
-The mock_check function MUST have exactly these three arguments: request, endpoint, limit_provider.
-
-## Testing Setup
-- Auth header: {"Authorization": "Bearer dev-token-123"}
-- Set env before importing app: os.environ["API_TOKENS"] = "dev-token-123:developer,admin-token-456:admin"
-- Use TestClient from fastapi.testclient
-- Import app AFTER setting os.environ
+## Test Setup
+```python
+import os
+os.environ["API_TOKENS"] = "dev-token-123:developer,admin-token-456:admin"
+os.environ["TOKEN_EXPIRY_SECONDS"] = "86400"
+os.environ["RATE_LIMIT_PER_MINUTE"] = "3"
+from main import app
+from fastapi.testclient import TestClient
+client = TestClient(app)
+AUTH_HEADERS = {"Authorization": "Bearer dev-token-123"}
+```
 
 ## Security Rules
 - Never commit .env files
 - All /api/ endpoints require verify_token dependency
-- Tokens must come from environment variables, never hardcoded in source
+- Tokens must come from environment variables only
