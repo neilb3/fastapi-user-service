@@ -14,7 +14,7 @@ def get_rate_limit():
     return os.getenv("RATE_LIMIT_PER_MINUTE", "100") + "/minute"
 
 @router.get("/users", response_model=list[UserResponse])
-@limiter.limit(lambda: os.getenv("RATE_LIMIT_PER_MINUTE", "100") + "/minute")
+@limiter.limit(get_rate_limit)
 def get_users(request: Request, token: str = Depends(verify_token)):
     return user_service.get_all_users()
 
