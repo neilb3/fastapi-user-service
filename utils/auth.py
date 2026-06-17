@@ -18,6 +18,11 @@ TOKEN_EXPIRY_SECONDS = int(os.getenv("TOKEN_EXPIRY_SECONDS", "86400"))
 _token_first_seen: dict[str, float] = {}
 
 def verify_token(authorization: Optional[str] = Header(None)) -> str:
+    """
+    Verify Bearer token from Authorization header.
+    Tokens are loaded from API_TOKENS environment variable.
+    Token expiry is enforced via TOKEN_EXPIRY_SECONDS environment variable.
+    """
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header missing")
     if not authorization.startswith("Bearer "):
