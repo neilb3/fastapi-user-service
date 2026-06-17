@@ -1,12 +1,6 @@
-import pytest
+import sys
 import os
 
-# Set environment before importing app
-os.environ["API_TOKENS"] = "dev-token-123:developer,admin-token-456:admin"
-os.environ["TOKEN_EXPIRY_SECONDS"] = "86400"
-os.environ["RATE_LIMIT_PER_MINUTE"] = "3"  # Low limit so tests can trigger it easily
-
-import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main import app
@@ -54,8 +48,6 @@ def test_create_user():
 
 
 def test_get_users_rate_limit_returns_429():
-    # Rate limit is set to 3/minute in test env
-    # Make 4 real requests - the 4th should be blocked
     with TestClient(app) as c:
         for _ in range(3):
             c.get("/api/users", headers=AUTH_HEADERS)
@@ -64,7 +56,6 @@ def test_get_users_rate_limit_returns_429():
 
 
 def test_get_users_rate_limit_has_retry_after_header():
-    # Make enough requests to trigger the limit then check headers
     with TestClient(app) as c:
         for _ in range(3):
             c.get("/api/users", headers=AUTH_HEADERS)
