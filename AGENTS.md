@@ -4,14 +4,23 @@
 fastapi-user-service is an internal REST API for user management built with FastAPI.
 
 ## File Ownership
-| File | Domain |
-|------|--------|
-| routes/users.py | All /api/users endpoints |
-| services/user_service.py | Business logic, no HTTP |
-| models/user.py | Pydantic schemas |
-| utils/auth.py | Token verification and expiry |
-| tests/test_users.py | All user endpoint tests |
-| main.py | App entry point, rate limit handler |
+| File | Domain | Locked |
+|------|--------|--------|
+| routes/users.py | All /api/users endpoints | No |
+| services/user_service.py | Business logic, no HTTP | No |
+| models/user.py | Pydantic schemas | No |
+| utils/auth.py | Token verification and expiry | YES - DO NOT MODIFY |
+| tests/test_users.py | All user endpoint tests | No |
+| main.py | App entry point, rate limit handler | No |
+
+## CRITICAL: utils/auth.py IS LOCKED
+DO NOT modify utils/auth.py under any circumstances.
+It already implements:
+- Token loading from API_TOKENS environment variable (not hardcoded)
+- Token expiry enforcement via TOKEN_EXPIRY_SECONDS environment variable
+- Proper Bearer token parsing
+
+Any changes to auth.py will be rejected. If auth changes are needed, raise a separate ticket.
 
 ## Rate Limiting - CRITICAL RULES
 
@@ -44,7 +53,7 @@ async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 ```
 
-NEVER use _rate_limit_exceeded_handler from slowapi - it breaks in tests.
+NEVER use _rate_limit_exceeded_handler from slowapi. It breaks in tests.
 
 ### routes/users.py pattern
 ```python
@@ -98,4 +107,5 @@ AUTH_HEADERS = {"Authorization": "Bearer dev-token-123"}
 ## Security Rules
 - Never commit .env files
 - All /api/ endpoints require verify_token dependency
+- utils/auth.py is LOCKED - do not modify it
 - Tokens must come from environment variables only
