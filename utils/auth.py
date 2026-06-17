@@ -1,4 +1,6 @@
-from fastapi import HTTPException, Header
+from fastapi import HTTPException, Header, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from typing import Optional
 import os
 import time
@@ -16,6 +18,9 @@ if _raw:
 # Token expiry enforcement (default 24 hours)
 TOKEN_EXPIRY_SECONDS = int(os.getenv("TOKEN_EXPIRY_SECONDS", "86400"))
 _token_first_seen: dict[str, float] = {}
+
+# Rate limiter instance - use remote address as the key
+limiter = Limiter(key_func=get_remote_address)
 
 def verify_token(authorization: Optional[str] = Header(None)) -> str:
     if not authorization:
