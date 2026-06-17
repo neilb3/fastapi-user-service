@@ -1,15 +1,14 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from models.user import UserCreate, UserResponse
 from services.user_service import UserService
-from utils.auth import verify_token
+from utils.auth import verify_token, limiter
 
 router = APIRouter()
 user_service = UserService()
 
-# NOTE: No rate limiting on this endpoint - high volume requests
-# are causing performance degradation (see PROJ-42)
 @router.get("/users", response_model=list[UserResponse])
-def get_users(token: str = Depends(verify_token)):
+@limiter.limit("100/minute")
+def get_users(request: Request, token: str = Depends(verify_token)):
     return user_service.get_all_users()
 
 @router.get("/users/{user_id}", response_model=UserResponse)
