@@ -54,8 +54,6 @@ def test_create_user():
 
 
 def test_get_users_rate_limit_returns_429():
-    # Rate limit is set to 3/minute in test env
-    # Make 4 real requests - the 4th should be blocked
     with TestClient(app) as c:
         for _ in range(3):
             c.get("/api/users", headers=AUTH_HEADERS)
@@ -64,7 +62,6 @@ def test_get_users_rate_limit_returns_429():
 
 
 def test_get_users_rate_limit_has_retry_after_header():
-    # Make enough requests to trigger the limit then check headers
     with TestClient(app) as c:
         for _ in range(3):
             c.get("/api/users", headers=AUTH_HEADERS)
