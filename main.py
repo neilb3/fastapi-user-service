@@ -6,14 +6,9 @@ from slowapi.errors import RateLimitExceeded
 from routes.users import router as users_router
 import os
 
-# Rate limit is configurable via env var
-# Production default: 100/minute. Tests use: 3/minute
-RATE_LIMIT = os.getenv("RATE_LIMIT_PER_MINUTE", "100")
-
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 app = FastAPI(title="User Service API", version="1.0.0")
 app.state.limiter = limiter
-app.state.rate_limit = RATE_LIMIT
 
 async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
