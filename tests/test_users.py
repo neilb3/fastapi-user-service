@@ -72,3 +72,41 @@ def test_get_users_rate_limit_has_retry_after_header():
     assert response.status_code == 429
     header_keys = {k.lower() for k in response.headers.keys()}
     assert "retry-after" in header_keys
+
+
+def test_get_user_by_id_rate_limit_returns_429():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users/1", headers=AUTH_HEADERS)
+        response = c.get("/api/users/1", headers=AUTH_HEADERS)
+    assert response.status_code == 429
+
+
+def test_get_user_by_id_rate_limit_has_retry_after_header():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users/1", headers=AUTH_HEADERS)
+        response = c.get("/api/users/1", headers=AUTH_HEADERS)
+    assert response.status_code == 429
+    header_keys = {k.lower() for k in response.headers.keys()}
+    assert "retry-after" in header_keys
+
+
+def test_create_user_rate_limit_returns_429():
+    payload = {"name": "Rate Limit User", "email": "ratelimit@example.com", "role": "user"}
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.post("/api/users", json=payload, headers=AUTH_HEADERS)
+        response = c.post("/api/users", json=payload, headers=AUTH_HEADERS)
+    assert response.status_code == 429
+
+
+def test_create_user_rate_limit_has_retry_after_header():
+    payload = {"name": "Rate Limit User", "email": "ratelimit2@example.com", "role": "user"}
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.post("/api/users", json=payload, headers=AUTH_HEADERS)
+        response = c.post("/api/users", json=payload, headers=AUTH_HEADERS)
+    assert response.status_code == 429
+    header_keys = {k.lower() for k in response.headers.keys()}
+    assert "retry-after" in header_keys
