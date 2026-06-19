@@ -4,7 +4,6 @@ import os
 import time
 
 # Tokens loaded from environment variables - never hardcoded in source code
-# Set API_TOKENS in your .env file as: token1:role1,token2:role2
 _raw = os.getenv("API_TOKENS", "")
 VALID_TOKENS: dict[str, str] = {}
 if _raw:
@@ -13,16 +12,10 @@ if _raw:
             token, role = pair.strip().split(":", 1)
             VALID_TOKENS[token.strip()] = role.strip()
 
-# Token expiry enforcement (default 24 hours)
 TOKEN_EXPIRY_SECONDS = int(os.getenv("TOKEN_EXPIRY_SECONDS", "86400"))
 _token_first_seen: dict[str, float] = {}
 
 def verify_token(authorization: Optional[str] = Header(None)) -> str:
-    """
-    Verify Bearer token from Authorization header.
-    Tokens are loaded from API_TOKENS environment variable.
-    Token expiry is enforced via TOKEN_EXPIRY_SECONDS environment variable.
-    """
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header missing")
     if not authorization.startswith("Bearer "):
@@ -30,7 +23,6 @@ def verify_token(authorization: Optional[str] = Header(None)) -> str:
     token = authorization.split(" ", 1)[1]
     if token not in VALID_TOKENS:
         raise HTTPException(status_code=401, detail="Invalid token")
-    # Token expiry check
     now = time.time()
     if token not in _token_first_seen:
         _token_first_seen[token] = now
