@@ -3,8 +3,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pytest
 from fastapi.testclient import TestClient
 from main import app
+from services.user_service import SentimentScorer
 
 client = TestClient(app)
 AUTH_HEADERS = {"Authorization": "Bearer dev-token-123"}
@@ -45,3 +47,47 @@ def test_create_user():
     response = client.post("/api/users", json=payload, headers=AUTH_HEADERS)
     assert response.status_code == 201
     assert response.json()["name"] == "Test User"
+
+
+# SentimentScorer tests
+
+def test_sentiment_scorer_raises_type_error_for_none():
+    scorer = SentimentScorer()
+    with pytest.raises(TypeError, match="text must be a string"):
+        scorer.score(None)
+
+
+def test_sentiment_scorer_raises_type_error_for_non_string():
+    scorer = SentimentScorer()
+    with pytest.raises(TypeError, match="text must be a string"):
+        scorer.score(12345)
+
+
+def test_sentiment_scorer_raises_value_error_for_empty_string():
+    scorer = SentimentScorer()
+    with pytest.raises(ValueError, match="empty or whitespace-only"):
+        scorer.score("")
+
+
+def test_sentiment_scorer_raises_value_error_for_whitespace_only():
+    scorer = SentimentScorer()
+    with pytest.raises(ValueError, match="empty or whitespace-only"):
+        scorer.score("   \t\n  ")
+
+
+def test_sentiment_scorer_raises_value_error_for_text_too_long():
+    scorer = SentimentScorer()
+    with pytest.raises(ValueError, match="must not exceed 5000 characters"):
+        scorer.score("a" * 5001)
+
+
+def test_sentiment_scorer_returns_neutral_for_valid_text():
+    scorer = SentimentScorer()
+    result = scorer.score("This is a valid sentence.")
+    assert result == "neutral"
+
+
+def test_sentiment_scorer_accepts_text_at_max_length():
+    scorer = SentimentScorer()
+    result = scorer.score("a" * 5000)
+    assert result == "neutral"
