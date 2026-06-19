@@ -1,5 +1,26 @@
 from models.user import UserCreate, UserResponse
 
+MAX_TEXT_LENGTH = 5000
+
+
+class SentimentScorer:
+    def score(self, text: str) -> str:
+        if text is None or not isinstance(text, str):
+            raise TypeError("text must be a string, not None or another type")
+        if not text.strip():
+            raise ValueError("text must not be empty or whitespace-only")
+        if len(text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"text must not exceed {MAX_TEXT_LENGTH} characters, got {len(text)}"
+            )
+        lower = text.lower()
+        if any(word in lower for word in ("good", "great", "excellent", "happy", "love")):
+            return "positive"
+        if any(word in lower for word in ("bad", "terrible", "awful", "sad", "hate")):
+            return "negative"
+        return "neutral"
+
+
 class UserService:
     def __init__(self):
         self._users: list[dict] = [
