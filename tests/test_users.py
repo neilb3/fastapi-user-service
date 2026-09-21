@@ -45,3 +45,54 @@ def test_create_user():
     response = client.post("/api/users", json=payload, headers=AUTH_HEADERS)
     assert response.status_code == 201
     assert response.json()["name"] == "Test User"
+
+
+def test_get_users_rate_limit_returns_429():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users", headers=AUTH_HEADERS)
+        response = c.get("/api/users", headers=AUTH_HEADERS)
+    assert response.status_code == 429
+
+
+def test_get_users_rate_limit_has_retry_after_header():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users", headers=AUTH_HEADERS)
+        response = c.get("/api/users", headers=AUTH_HEADERS)
+    assert response.status_code == 429
+    assert "retry-after" in {k.lower() for k in response.headers.keys()}
+
+
+def test_get_user_by_id_rate_limit_returns_429():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users/1", headers=AUTH_HEADERS)
+        response = c.get("/api/users/1", headers=AUTH_HEADERS)
+    assert response.status_code == 429
+
+
+def test_get_user_by_id_rate_limit_has_retry_after_header():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.get("/api/users/1", headers=AUTH_HEADERS)
+        response = c.get("/api/users/1", headers=AUTH_HEADERS)
+    assert response.status_code == 429
+    assert "retry-after" in {k.lower() for k in response.headers.keys()}
+
+
+def test_create_user_rate_limit_returns_429():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.post("/api/users", json={"name": "Test User", "email": "test@example.com", "role": "user"}, headers=AUTH_HEADERS)
+        response = c.post("/api/users", json={"name": "Test User", "email": "test@example.com", "role": "user"}, headers=AUTH_HEADERS)
+    assert response.status_code == 429
+
+
+def test_create_user_rate_limit_has_retry_after_header():
+    with TestClient(app) as c:
+        for _ in range(3):
+            c.post("/api/users", json={"name": "Test User", "email": "test@example.com", "role": "user"}, headers=AUTH_HEADERS)
+        response = c.post("/api/users", json={"name": "Test User", "email": "test@example.com", "role": "user"}, headers=AUTH_HEADERS)
+    assert response.status_code == 429
+    assert "retry-after" in {k.lower() for k in response.headers.keys()}
